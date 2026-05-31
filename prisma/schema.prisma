@@ -1,0 +1,416 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model About {
+  id             Int     @id @default(autoincrement())
+  brandMission   String? @map("brand_mission") @db.VarChar(1000)
+  brandVision    String? @map("brand_vision") @db.VarChar(1000)
+  contactPhone   String? @map("contact_phone") @db.VarChar(20)
+  whatsappPhone  String? @map("whatsapp_phone") @db.VarChar(20)
+  contactEmail   String? @map("contact_email") @db.VarChar(256)
+  coreValues     String? @map("core_values") @db.VarChar(800)
+
+  @@map("about")
+}
+
+model Advert {
+  id              Int     @id @default(autoincrement())
+  advertImageName String? @map("advert_image_name") @db.VarChar(255)
+  advertContent   String? @map("advert_content") @db.Text
+
+  @@map("adverts")
+}
+
+model AgreementRef {
+  id                Int    @id @default(autoincrement())
+  userId            String @map("user_id") @db.VarChar(100)
+  nationalIdImgName String? @map("national_id_img_name") @db.VarChar(300)
+  signatureData     Bytes? @map("signature_data") @db.ByteA
+  users             User   @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: NoAction, map: "agreement_refs_ibfk_1")
+
+  @@index([userId], map: "idx_agreement_refs_user_id")
+  @@map("agreement_refs")
+}
+
+model ApplicationActivity {
+  activityId                 Int       @id @default(autoincrement()) @map("activity_id")
+  customerId                 String    @unique(map: "uq_application_activity_customer_id") @map("customer_id") @db.VarChar(100)
+  lastApplicationDate        DateTime? @map("last_application_date") @db.Timestamp(0)
+  lastApprovedApplicationDate DateTime? @map("last_approved_application_date") @db.Timestamp(0)
+  numApplications            Int?      @default(0) @map("num_applications")
+  users                      User      @relation(fields: [customerId], references: [userId], onDelete: Cascade, map: "application_activity_ibfk_1")
+
+  @@map("application_activity")
+}
+
+model BrandImage {
+  id             Int     @id @default(autoincrement())
+  brandImageName String? @map("brand_image_name") @db.VarChar(255)
+
+  @@map("brand_images")
+}
+
+model District {
+  id           Int    @id @default(autoincrement())
+  districtName String @map("district_name") @db.VarChar(64)
+  users        User[]
+
+  @@map("districts")
+}
+
+model FeedbackCategory {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique(map: "name") @db.VarChar(50)
+  description String?    @db.Text
+  feedbacks   Feedback[]
+
+  @@map("feedback_categories")
+}
+
+model FeedbackChat {
+  feedbackId  Int      @map("feedback_id")
+  chatTextId  Int      @id @default(autoincrement()) @map("chat_text_id")
+  chatText    String?  @map("chat_text") @db.VarChar(800)
+  isNewReply  Boolean? @default(true) @map("is_new_reply")
+  dateReplied DateTime? @default(now()) @map("date_replied") @db.Timestamp(0)
+  senderId    String   @map("sender_id") @db.VarChar(100)
+  feedbacks   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade, map: "feedback_chats_ibfk_1")
+  users       User     @relation(fields: [senderId], references: [userId], onDelete: Cascade, map: "feedback_chats_ibfk_2")
+
+  @@index([feedbackId], map: "idx_feedback_chats_feedback")
+  @@index([senderId], map: "idx_feedback_chats_sender")
+  @@map("feedback_chats")
+}
+
+model Feedback {
+  id                 Int              @id @default(autoincrement())
+  userId             String           @map("user_id") @db.VarChar(100)
+  categoryId         Int              @map("category_id")
+  feedbackText       String           @map("feedback_text") @db.Text
+  createdAt          DateTime?        @default(now()) @map("created_at") @db.Timestamp(0)
+  isSeen             Boolean?         @default(false) @map("is_seen")
+  feedbackChats      FeedbackChat[]
+  users              User             @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: NoAction, map: "feedbacks_ibfk_1")
+  feedbackCategories FeedbackCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "feedbacks_ibfk_2")
+
+  @@index([categoryId], map: "idx_feedbacks_category")
+  @@index([isSeen], map: "idx_feedbacks_seen")
+  @@index([userId], map: "idx_feedbacks_user")
+  @@map("feedbacks")
+}
+
+model Gender {
+  genderId Int    @id @default(autoincrement()) @map("gender_id")
+  gender   String @db.VarChar(50)
+  users    User[]
+
+  @@map("genders")
+}
+
+model InterestRate {
+  rateId       Int      @id @default(autoincrement()) @map("rate_id")
+  loanTypeId   Int      @map("loan_type_id")
+  numWeeks     Int      @map("num_weeks")
+  activeRate   Int      @map("active_rate")
+  standardRate Int      @map("standard_rate")
+  loanTypes    LoanType @relation(fields: [loanTypeId], references: [loanTypeId], onDelete: NoAction, onUpdate: NoAction, map: "interest_rates_ibfk_1")
+
+  @@index([loanTypeId], map: "idx_interest_rates_loan_type_id")
+  @@map("interest_rates")
+}
+
+model LoanApplication {
+  id          Int       @id @default(autoincrement())
+  applicantId String    @map("applicant_id") @db.VarChar(100)
+  loanAmount  Int       @map("loan_amount")
+  collateral  String?   @db.VarChar(200)
+  numWeeks    Int       @map("num_weeks")
+  location    String    @db.VarChar(100)
+  dateApplied DateTime? @default(now()) @map("date_applied") @db.Timestamp(0)
+  discount    Int?      @default(0)
+  users       User      @relation(fields: [applicantId], references: [userId], onDelete: NoAction, onUpdate: NoAction, map: "loan_applications_ibfk_1")
+
+  @@index([applicantId], map: "idx_loan_applications_applicant")
+  @@index([dateApplied], map: "idx_loan_applications_date")
+  @@map("loan_applications")
+}
+
+model LoanType {
+  loanTypeId    Int            @id @default(autoincrement()) @map("loan_type_id")
+  typeName      String         @map("type_name") @db.VarChar(255)
+  interestRates InterestRate[]
+  loans         Loan[]
+
+  @@map("loan_types")
+}
+
+model Loan {
+  loanId                       String    @id @map("loan_id") @db.VarChar(100)
+  customerId                   String    @map("customer_id") @db.VarChar(100)
+  handlerId                    String    @map("handler_id") @db.VarChar(100)
+  loanTypeId                   Int       @map("loan_type_id")
+  loanAmount                   Int       @map("loan_amount")
+  returnAmount                 Int       @map("return_amount")
+  interestRate                Int       @map("interest_rate")
+  numWeeks                     Int       @map("num_weeks")
+  startDate                    DateTime  @map("start_date") @db.Timestamp(0)
+  endDate                      DateTime  @map("end_date") @db.Timestamp(0)
+  status                       String    @db.VarChar(50)
+  collateral                   String    @db.VarChar(200)
+  isCleared                    Boolean?  @default(false) @map("is_cleared")
+  customer                     User      @relation("loans_customer_idTousers", fields: [customerId], references: [userId], onDelete: Cascade, map: "loans_ibfk_1")
+  handler                      User      @relation("loans_handler_idTousers", fields: [handlerId], references: [userId], onDelete: Cascade, map: "loans_ibfk_2")
+  loanTypes                    LoanType  @relation(fields: [loanTypeId], references: [loanTypeId], onDelete: Cascade, map: "loans_ibfk_3")
+  payments                     Payment[]
+
+  @@index([customerId], map: "idx_loans_customer")
+  @@index([endDate], map: "idx_loans_end_date")
+  @@index([handlerId], map: "idx_loans_handler")
+  @@index([isCleared], map: "idx_loans_is_cleared")
+  @@index([status], map: "idx_loans_status")
+  @@index([loanTypeId], map: "idx_loans_loan_type_id")
+  @@map("loans")
+}
+
+model Message {
+  messageId   Int    @id @default(autoincrement()) @map("message_id")
+  messageType String @map("message_type") @db.VarChar(50)
+  targetUser  String @map("target_user") @db.VarChar(50)
+  message     String? @db.Text
+
+  @@index([targetUser], map: "idx_messages_target")
+  @@index([messageType], map: "idx_messages_type")
+  @@map("messages")
+}
+
+model Notification {
+  notificationId   Int      @id @default(autoincrement()) @map("notification_id")
+  notificationType String   @map("notification_type") @db.VarChar(50)
+  targetUser       String   @map("target_user") @db.VarChar(50)
+  content          String?  @db.Text
+  date             DateTime @db.Timestamp(0)
+  isViewed         Boolean? @default(false) @map("is_viewed")
+
+  @@index([isViewed], map: "idx_notifications_is_viewed")
+  @@index([notificationType], map: "idx_notifications_notification_type")
+  @@index([targetUser], map: "idx_notifications_target")
+  @@map("notifications")
+}
+
+model PaymentDetail {
+  paymentDetailId Int     @id @default(autoincrement()) @map("payment_detail_id")
+  paymentModeName String? @map("payment_mode_name") @db.VarChar(100)
+  accountName     String? @map("account_name") @db.VarChar(255)
+  accountNumber   String? @map("account_number") @db.VarChar(255)
+
+  @@map("payment_details")
+}
+
+model Payment {
+  paymentId  String   @id @map("payment_id") @db.VarChar(100)
+  handlerId  String   @map("handler_id") @db.VarChar(100)
+  loanId     String   @map("loan_id") @db.VarChar(100)
+  amountPaid Int      @map("amount_paid")
+  datePaid   DateTime @map("date_paid") @db.Timestamp(0)
+  loans      Loan     @relation(fields: [loanId], references: [loanId], onDelete: Cascade, map: "payments_ibfk_1")
+  users      User     @relation(fields: [handlerId], references: [userId], onDelete: Cascade, map: "payments_ibfk_2")
+
+  @@index([datePaid], map: "idx_payments_date")
+  @@index([handlerId], map: "idx_payments_handler")
+  @@index([loanId], map: "idx_payments_loan")
+  @@map("payments")
+}
+
+model Saving {
+  savingsId      Int            @id @default(autoincrement()) @map("savings_id")
+  customerId     String         @map("customer_id") @db.VarChar(100)
+  amountSaved    Int            @map("amount_saved")
+  interestRate   Int?           @default(0) @map("interest_rate")
+  returnAmount   Int            @map("return_amount")
+  startDate      DateTime?      @default(now()) @map("start_date") @db.Timestamp(0)
+  returnDate     DateTime       @map("return_date") @db.Timestamp(0)
+  isWithdrawn    Boolean?       @default(false) @map("is_withdrawn")
+  dateWithdrawn  DateTime?      @map("date_withdrawn") @db.Timestamp(0)
+  users          User           @relation(fields: [customerId], references: [userId], onDelete: Cascade, map: "savings_ibfk_1")
+  savingsAudits  SavingsAudit[]
+
+  @@index([customerId], map: "idx_savings_customer_id")
+  @@map("savings")
+}
+
+model SavingsApplication {
+  applicationId      Int       @id @default(autoincrement()) @map("application_id")
+  customerId         String    @map("customer_id") @db.VarChar(100)
+  amount             Int
+  dateApplied        DateTime? @default(now()) @map("date_applied") @db.Timestamp(0)
+  residenceLocation  String?   @map("residence_location") @db.VarChar(255)
+  isEdited           Boolean?  @default(false) @map("is_edited")
+  users              User      @relation(fields: [customerId], references: [userId], onDelete: Cascade, map: "savings_applications_ibfk_1")
+
+  @@index([customerId], map: "idx_savings_applications_customer_id")
+  @@map("savings_applications")
+}
+
+model SavingsAttr {
+  attributeId           Int    @id @default(autoincrement()) @map("attribute_id")
+  interestRate          Int    @map("interest_rate")
+  maxAmount             Float  @map("max_amount") @db.DoublePrecision
+  minAmount             Float  @map("min_amount") @db.DoublePrecision
+  maxActiveApplications Int    @default(3) @map("max_active_applications")
+  updatedBy             String @map("updated_by") @db.VarChar(100)
+  users                 User   @relation(fields: [updatedBy], references: [userId], onDelete: Cascade, map: "savings_attr_ibfk_1")
+
+  @@index([updatedBy], map: "updated_by")
+  @@map("savings_attr")
+}
+
+model SavingsAudit {
+  auditId      Int              @id @default(autoincrement()) @map("audit_id")
+  handlerId    String           @map("handler_id") @db.VarChar(100)
+  savingsId    Int              @map("savings_id")
+  action       SavingsAuditsAction @map("action")
+  description  String           @db.VarChar(512)
+  createdAt    DateTime?        @default(now()) @map("created_at") @db.Timestamp(0)
+  users        User             @relation(fields: [handlerId], references: [userId], onDelete: Cascade, map: "savings_audits_ibfk_1")
+  savings      Saving           @relation(fields: [savingsId], references: [savingsId], onDelete: Cascade, map: "savings_audits_ibfk_2")
+
+  @@index([handlerId], map: "handler_id")
+  @@index([savingsId], map: "savings_id")
+  @@map("savings_audits")
+}
+
+model SpecialOffer {
+  id             Int      @id @default(autoincrement())
+  discountValue  Int      @map("discount_value")
+  targetCustomer String?  @map("target_customer") @db.VarChar(100)
+  redeemed       Boolean? @default(false)
+  offerDate      DateTime @map("offer_date") @db.Date
+  users          User?    @relation(fields: [targetCustomer], references: [userId], onDelete: NoAction, onUpdate: NoAction, map: "special_offers_ibfk_1")
+
+  @@index([targetCustomer], map: "target_customer")
+  @@map("special_offers")
+}
+
+model SystemInfo {
+  id          Int     @id @default(autoincrement())
+  systemName  String? @map("system_name") @db.VarChar(200)
+  slogan      String? @db.VarChar(250)
+  logoImgName String? @map("logo_img_name") @db.VarChar(400)
+
+  @@map("system_info")
+}
+
+model TermsAndConditions {
+  id            Int       @id @default(autoincrement())
+  version       String    @db.VarChar(50)
+  title         String    @db.VarChar(255)
+  content       String    @db.Text
+  effectiveDate DateTime  @map("effective_date") @db.Timestamp(0)
+  createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt     DateTime? @default(now()) @map("updated_at") @db.Timestamp(0)
+
+  @@map("terms_and_conditions")
+}
+
+model UserTncAcceptance {
+  id         Int       @id @default(autoincrement())
+  userId     String    @map("user_id") @db.VarChar(100)
+  acceptedAt DateTime? @default(now()) @map("accepted_at") @db.Timestamp(0)
+  users      User      @relation(fields: [userId], references: [userId], onDelete: NoAction, onUpdate: NoAction, map: "user_tnc_acceptance_ibfk_1")
+
+  @@index([userId], map: "idx_user_tnc_acceptance_user_id")
+  @@map("user_tnc_acceptance")
+}
+
+model User {
+  userId                        String              @id @map("user_id") @db.VarChar(100)
+  password                      String              @db.VarChar(500)
+  fullname                      String              @db.VarChar(100)
+  genderId                      Int?                @map("gender_id")
+  nationalId                    String              @map("national_id") @db.VarChar(255)
+  phone                         String?             @db.VarChar(14)
+  email                         String?             @db.VarChar(100)
+  isBlocked                     Boolean?            @default(false) @map("is_blocked")
+  dp                            String?             @db.VarChar(100)
+  districtId                    Int?                @map("district_id")
+  sessionState                  Json?               @map("session_state")
+  userRoles                     UserRole[]
+  agreementRefs                 AgreementRef[]
+  applicationActivity           ApplicationActivity?
+  feedbackChats                 FeedbackChat[]
+  feedbacks                     Feedback[]
+  loanApplications              LoanApplication[]
+  loansTaken                    Loan[]              @relation("loans_customer_idTousers")
+  loansProcessed                Loan[]              @relation("loans_handler_idTousers")
+  payments                      Payment[]
+  savings                       Saving[]
+  savingsApplications           SavingsApplication[]
+  savingsAttr                   SavingsAttr[]
+  savingsAudits                 SavingsAudit[]
+  specialOffers                 SpecialOffer[]
+  userTncAcceptance             UserTncAcceptance[]
+  districts                     District?           @relation(fields: [districtId], references: [id], map: "fk_users_district")
+  genders                       Gender?             @relation(fields: [genderId], references: [genderId], onDelete: NoAction, onUpdate: NoAction, map: "users_ibfk_1")
+
+  @@index([genderId], map: "gender_id")
+  @@index([districtId], map: "idx_users_district")
+  @@index([email], map: "idx_users_email")
+  @@index([phone], map: "idx_users_phone")
+  @@index([userId], map: "idx_users_user_id")
+  @@map("users")
+}
+
+model Role {
+  roleId      Int              @id @default(autoincrement()) @map("role_id")
+  name        String           @unique @db.VarChar(50)
+  description String?          @db.VarChar(255)
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId String
+  roleId Int
+
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [roleId], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+
+model Permission {
+  permissionId Int               @id @default(autoincrement()) @map("permission_id")
+  name         String            @unique @db.VarChar(100)
+  description  String?           @db.VarChar(255)
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+
+  role        Role        @relation(fields: [roleId], references: [roleId], onDelete: Cascade)
+  permission  Permission  @relation(fields: [permissionId], references: [permissionId], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+enum SavingsAuditsAction {
+  decline_application
+  approve_application
+  process_withdrawal
+}
