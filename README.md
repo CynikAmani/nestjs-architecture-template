@@ -1,73 +1,82 @@
-# Xander Creditors API
+# Generic NestJS Infrastructure Boilerplate
 
-Backend service for the Xander Creditors microfinance platform. It manages customer accounts, loan and savings lifecycles, payments, feedback, notifications, and system content — with role-based access control enforced on every protected route.
+An enterprise-ready foundation for building scalable NestJS APIs. This repository provides a production-grade core layer — authentication, authorization, configuration, observability, and database access — that is intentionally decoupled from any specific business logic. Clone it as a starter template, drop in your own domain modules, and ship faster without re-solving infrastructure concerns on every project.
 
-Built with **NestJS 11**, **Prisma 7**, and **PostgreSQL**.
+The boilerplate is designed to be fully reusable: swap the example schema, seed data, and feature modules for your own domain without touching the global infrastructure layer.
 
-## What this service does
+## Core Infrastructure Blueprint
 
-Xander Creditors is a lending and savings platform. This API is the core backend that:
+The architecture separates **infrastructure** from **domain** at every layer:
 
-- Authenticates users with JWT access tokens and rotating refresh sessions
-- Enforces fine-grained permissions derived from database roles
-- Models the full business domain: loan applications, active loans, repayments, savings products, customer feedback, agreements, and CMS-style content
-- Provides a production-ready foundation (validation, rate limiting, structured errors, logging) for feature modules to build on
+- **Application shell** — Root module wires global config validation, throttling, validation pipes, and feature modules.
+- **Core infrastructure module** — A single global module registers JWT authentication, permission enforcement, structured exception handling, and request logging across the entire application.
+- **Auth layer** — Stateless access tokens, rotating refresh sessions, and decorator-driven route protection (`@Public()`, `@Permissions()`).
+- **Data access** — Prisma with the PostgreSQL driver adapter, a shared service module, and database-aware exception mapping.
+- **Configuration** — Environment variables validated at startup; the server refuses to boot with invalid or missing required config.
 
-## Tech stack
+> **Reference schema note:** The database layer currently ships with a microfinance domain schema (Xander Creditors) included solely as a complex, real-world example. It demonstrates how the core handles deep relational models, permission seeding at scale, and RBAC across many entities. This schema is optional reference material — replace `prisma/schema.prisma`, seed scripts, and domain constants with your own models when starting a new project. The infrastructure modules require no changes to do so.
 
-| Layer | Choice |
+## Tech Stack
+
+| Layer | Technology |
 | --- | --- |
 | Runtime | Node.js, TypeScript |
 | Framework | NestJS 11 |
-| Database | PostgreSQL via Prisma 7 (`@prisma/adapter-pg`) |
-| Auth | Passport JWT, bcrypt, refresh-token rotation |
-| Validation | class-validator, Joi (environment) |
+| ORM | Prisma 7 (`@prisma/adapter-pg`) |
+| Database | PostgreSQL |
+| Authentication | Passport JWT, bcrypt |
 | Rate limiting | `@nestjs/throttler` |
+| Validation | class-validator, Joi |
 
-## Architecture highlights
+## Global Architecture Highlights
 
-- **Schema-driven RBAC** — Permissions are defined in code (`src/auth/constants/permissions.constant.ts`), seeded into the database, and checked at runtime by `PermissionGuard`. Users with the `SUPER_ADMIN` role bypass permission checks.
-- **Dual-credential login** — Users can sign in with either their `userId` or email address.
-- **Global infrastructure** — JWT auth, permission checks, request logging, and exception filters are registered once in `CoreInfrastructureModule` and apply application-wide.
-- **Type-safe configuration** — Environment variables are validated at startup with Joi; invalid config fails fast before the server listens.
+### Generic Global Infrastructure (`CoreInfrastructureModule`)
 
-## Project structure
+All cross-cutting concerns are registered once and applied application-wide: JWT auth guard, permission guard, global exception filters (including Prisma error mapping), and a logging interceptor. Feature modules inherit this behavior automatically — no per-controller boilerplate required.
+
+### Dual-Credential Login
+
+The auth service accepts a single `identity` field that resolves against multiple user attributes (e.g. username or email). This pattern is domain-agnostic and can be extended to additional lookup fields without changing the login contract.
+
+### Schema-Driven RBAC (`PermissionGuard`)
+
+Permissions are declared as typed constants, seeded into the database, and bound to roles. Endpoints declare required permissions via a decorator; the guard enforces them at runtime. A designated super-admin role bypasses checks for operational access. Replace the permission catalog and seed pipeline to match any domain.
+
+### Type-Safe Environment Validation
+
+A Joi validation schema runs at startup through `@nestjs/config`. Required variables, defaults, and allowed values are enforced before the HTTP server binds to a port — preventing silent misconfiguration in production.
+
+## Project Structure
 
 ```
 src/
-├── auth/                 # Login, refresh, JWT strategy, guards, permission decorators
+├── auth/                     # Authentication module
+│   ├── decorators/           # @Public(), @Permissions()
+│   ├── guards/               # JwtAuthGuard, PermissionGuard
+│   ├── strategies/           # Passport JWT strategy
+│   ├── dto/                  # Request validation objects
+│   └── constants/            # Permission catalog (swap for your domain)
 ├── common/
-│   ├── config/           # Env validation and typed config keys
-│   ├── filters/          # Global and Prisma exception handling
-│   └── interceptors/     # Request logging
-├── prisma/               # PrismaService module
-├── app.module.ts         # Root module (config, throttling, pipes)
-└── main.ts               # Bootstrap and CORS
+│   ├── config/               # Env schema, typed config keys
+│   ├── filters/              # Global & database exception handlers
+│   └── interceptors/         # Request logging
+├── prisma/                   # PrismaService module
+├── core-infrastructure.module.ts   # Global guards, filters, interceptors
+├── app.module.ts             # Root module assembly
+└── main.ts                   # Bootstrap & CORS
 
 prisma/
-├── schema.prisma         # Full domain schema (users, loans, savings, RBAC, …)
-├── seed.ts               # Reference data, permissions, super-admin bootstrap
-└── data/                 # Static seed data (districts, genders)
+├── schema.prisma             # Database schema (replace with your domain)
+├── seed.ts                   # Permissions, roles, reference data bootstrap
+└── data/                     # Static seed payloads
 ```
 
-## Domain overview
-
-The Prisma schema covers the main platform areas:
-
-- **Identity & access** — Users, roles, permissions, session state
-- **Loans** — Applications, active loans, interest rates, loan types, payments
-- **Savings** — Applications, savings accounts, configuration, audit trail
-- **Support** — Feedback, feedback chat threads, notifications, messages
-- **Compliance & content** — Agreements, terms & conditions, about/adverts/brand assets, special offers
-
-Feature endpoints for these domains are added incrementally; the auth and RBAC layer is already in place.
-
-## Getting started
+## Getting Started
 
 ### Prerequisites
 
 - Node.js 18+ (20+ recommended)
-- PostgreSQL database
+- PostgreSQL
 - npm
 
 ### Installation
@@ -76,18 +85,16 @@ Feature endpoints for these domains are added incrementally; the auth and RBAC l
 npm install
 ```
 
-### Environment
+### Environment Setup
 
 Create a `.env` file in the project root:
 
 ```env
 NODE_ENV=development
 PORT=3000
-DATABASE_URL=postgresql://user:password@localhost:5432/xander_creditors
+DATABASE_URL=postgresql://user:password@localhost:5432/your_database
 JWT_SECRET=your-secret-key
 JWT_EXPIRATION_TIME=3600s
-
-# Optional — used by the seed script for the default admin password
 INITIAL_ADMIN_PASSWORD=change-me-in-production
 ```
 
@@ -100,99 +107,75 @@ INITIAL_ADMIN_PASSWORD=change-me-in-production
 | `JWT_EXPIRATION_TIME` | No | Access token TTL (default `3600s`) |
 | `INITIAL_ADMIN_PASSWORD` | No | Password for the seeded super-admin user |
 
-### Database setup
+### Database Setup
 
 ```bash
-# Apply migrations (when available)
 npx prisma migrate dev
-
-# Generate Prisma client
 npx prisma generate
-
-# Seed reference data, permissions, roles, and default admin
 npm run db:seed
 ```
 
-The seed creates a super-admin user (`sudo@xandercreditors.com`) with the `SUPER_ADMIN` role and all permissions. Change the default password via `INITIAL_ADMIN_PASSWORD` before running seed in any shared environment.
+The seed pipeline provisions permissions, a super-admin role, reference data, and a default administrator account. Customize or replace `prisma/seed.ts` entirely when adopting a new domain.
 
-### Run the API
+### Run
 
 ```bash
 # Development (watch mode)
 npm run start:dev
 
-# Production build
+# Production
 npm run build
 npm run start:prod
 ```
 
-The server listens on the port defined in `PORT` (default `3000`).
+## Authentication & Security Defaults
 
-## Authentication
+All routes require a valid JWT unless decorated with `@Public()`.
 
-All routes are protected by default unless marked with `@Public()`.
-
-### Login
+**Login**
 
 ```http
 POST /api/auth/login
 Content-Type: application/json
 
 {
-  "identity": "sudo@xandercreditors.com",
+  "identity": "admin@example.com",
   "password": "your-password"
 }
 ```
 
-Response includes `accessToken`, `refreshToken`, and a `user` object with `roles` and `permissions`.
+The response returns `accessToken`, `refreshToken`, and a `user` payload including resolved `roles` and `permissions`. A separate `POST /api/auth/refresh` endpoint rotates both tokens using a hashed refresh session stored server-side.
 
-Login is rate-limited to **5 requests per minute** per client.
+**Security benchmarks**
 
-### Refresh session
+| Control | Default |
+| --- | --- |
+| Global rate limit | 30 requests / minute |
+| Login rate limit | 5 requests / minute |
+| Password storage | bcrypt (12 salt rounds in seed) |
+| Refresh token storage | SHA-256 hash (never stored in plaintext) |
+| Request validation | Whitelist mode — unknown fields are rejected |
+| CORS | Enabled with credentials support |
 
-```http
-POST /api/auth/refresh
-Content-Type: application/json
+Access tokens expire after **15 minutes**. Refresh tokens are valid for **7 days**.
 
-{
-  "userId": "sudo@xandercreditors.com",
-  "refreshToken": "<refresh-token-from-login>"
-}
-```
-
-Access tokens expire after **15 minutes**. Refresh tokens are valid for **7 days** and are stored hashed in the user's `sessionState`.
-
-### Protecting routes
-
-```typescript
-import { Permissions } from './auth/decorators/permissions.decorator';
-import { PERMISSIONS } from './auth/constants/permissions.constant';
-
-@Permissions(PERMISSIONS.LOANS.READ)
-@Get()
-findAll() { /* ... */ }
-```
-
-## Scripts
+## Automation Scripts
 
 | Command | Description |
 | --- | --- |
+| `npm run start` | Start the application |
 | `npm run start:dev` | Start in watch mode |
-| `npm run build` | Compile to `dist/` |
+| `npm run start:debug` | Start with debugger attached |
 | `npm run start:prod` | Run compiled output |
+| `npm run build` | Compile to `dist/` |
 | `npm run lint` | ESLint with auto-fix |
+| `npm run format` | Prettier format |
 | `npm run test` | Unit tests |
+| `npm run test:watch` | Unit tests in watch mode |
+| `npm run test:cov` | Unit tests with coverage |
 | `npm run test:e2e` | End-to-end tests |
 | `npm run db:seed` | Run Prisma seed |
 
-## Security defaults
-
-- Passwords hashed with bcrypt (12 rounds in seed)
-- Refresh tokens hashed with SHA-256 before storage
-- Global rate limit: **30 requests per minute** (stricter on login)
-- Request body validation with whitelist — unknown fields are rejected
-- CORS enabled with credentials support
-
 ## License
 
-UNLICENSED — private project.
+UNLICENSED — Reusable Core Architecture Boilerplate.
