@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
-import { PERMISSIONS_METADATA_KEY } from '../decorators/permissions.decorator';
+import { PERMISSION_METADATA_KEY } from '../decorators/permission.decorator';
 import { PermissionType } from '../constants/permissions.constant';
 
 const SUPER_ADMIN_ROLE_NAME = 'SUPER_ADMIN';
@@ -32,7 +32,7 @@ export class PermissionGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // Read the single required atomic permission string from metadata
     const requiredPermission = this.reflector.getAllAndOverride<PermissionType | undefined>(
-      PERMISSIONS_METADATA_KEY,
+      PERMISSION_METADATA_KEY,
       [context.getHandler(), context.getClass()],
     );
 

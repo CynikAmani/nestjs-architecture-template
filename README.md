@@ -10,7 +10,7 @@ The architecture separates **infrastructure** from **domain** at every layer:
 
 - **Application shell** — Root module wires global config validation, throttling, validation pipes, and feature modules.
 - **Core infrastructure module** — A single global module registers JWT authentication, permission enforcement, structured exception handling, and request logging across the entire application.
-- **Auth layer** — Stateless access tokens, rotating refresh sessions, and decorator-driven route protection (`@Public()`, `@Permissions()`).
+- **Auth layer** — Stateless access tokens, rotating refresh sessions, and decorator-driven route protection (`@Public()`, `@Permission()`).
 - **Data access** — Prisma with the PostgreSQL driver adapter, a shared service module, and database-aware exception mapping.
 - **Configuration** — Environment variables validated at startup; the server refuses to boot with invalid or missing required config.
 
@@ -51,7 +51,7 @@ A Joi validation schema runs at startup through `@nestjs/config`. Required varia
 ```
 src/
 ├── auth/                     # Authentication module
-│   ├── decorators/           # @Public(), @Permissions()
+│   ├── decorators/           # @Public(), @Permission()
 │   ├── guards/               # JwtAuthGuard, PermissionGuard
 │   ├── strategies/           # Passport JWT strategy
 │   ├── dto/                  # Request validation objects
