@@ -1,98 +1,198 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Xander Creditors API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend service for the Xander Creditors microfinance platform. It manages customer accounts, loan and savings lifecycles, payments, feedback, notifications, and system content — with role-based access control enforced on every protected route.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Built with **NestJS 11**, **Prisma 7**, and **PostgreSQL**.
 
-## Description
+## What this service does
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Xander Creditors is a lending and savings platform. This API is the core backend that:
 
-## Project setup
+- Authenticates users with JWT access tokens and rotating refresh sessions
+- Enforces fine-grained permissions derived from database roles
+- Models the full business domain: loan applications, active loans, repayments, savings products, customer feedback, agreements, and CMS-style content
+- Provides a production-ready foundation (validation, rate limiting, structured errors, logging) for feature modules to build on
 
-```bash
-$ npm install
+## Tech stack
+
+| Layer | Choice |
+| --- | --- |
+| Runtime | Node.js, TypeScript |
+| Framework | NestJS 11 |
+| Database | PostgreSQL via Prisma 7 (`@prisma/adapter-pg`) |
+| Auth | Passport JWT, bcrypt, refresh-token rotation |
+| Validation | class-validator, Joi (environment) |
+| Rate limiting | `@nestjs/throttler` |
+
+## Architecture highlights
+
+- **Schema-driven RBAC** — Permissions are defined in code (`src/auth/constants/permissions.constant.ts`), seeded into the database, and checked at runtime by `PermissionGuard`. Users with the `SUPER_ADMIN` role bypass permission checks.
+- **Dual-credential login** — Users can sign in with either their `userId` or email address.
+- **Global infrastructure** — JWT auth, permission checks, request logging, and exception filters are registered once in `CoreInfrastructureModule` and apply application-wide.
+- **Type-safe configuration** — Environment variables are validated at startup with Joi; invalid config fails fast before the server listens.
+
+## Project structure
+
+```
+src/
+├── auth/                 # Login, refresh, JWT strategy, guards, permission decorators
+├── common/
+│   ├── config/           # Env validation and typed config keys
+│   ├── filters/          # Global and Prisma exception handling
+│   └── interceptors/     # Request logging
+├── prisma/               # PrismaService module
+├── app.module.ts         # Root module (config, throttling, pipes)
+└── main.ts               # Bootstrap and CORS
+
+prisma/
+├── schema.prisma         # Full domain schema (users, loans, savings, RBAC, …)
+├── seed.ts               # Reference data, permissions, super-admin bootstrap
+└── data/                 # Static seed data (districts, genders)
 ```
 
-## Compile and run the project
+## Domain overview
+
+The Prisma schema covers the main platform areas:
+
+- **Identity & access** — Users, roles, permissions, session state
+- **Loans** — Applications, active loans, interest rates, loan types, payments
+- **Savings** — Applications, savings accounts, configuration, audit trail
+- **Support** — Feedback, feedback chat threads, notifications, messages
+- **Compliance & content** — Agreements, terms & conditions, about/adverts/brand assets, special offers
+
+Feature endpoints for these domains are added incrementally; the auth and RBAC layer is already in place.
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 18+ (20+ recommended)
+- PostgreSQL database
+- npm
+
+### Installation
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
 ```
 
-## Run tests
+### Environment
+
+Create a `.env` file in the project root:
+
+```env
+NODE_ENV=development
+PORT=3000
+DATABASE_URL=postgresql://user:password@localhost:5432/xander_creditors
+JWT_SECRET=your-secret-key
+JWT_EXPIRATION_TIME=3600s
+
+# Optional — used by the seed script for the default admin password
+INITIAL_ADMIN_PASSWORD=change-me-in-production
+```
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `NODE_ENV` | Yes | `development`, `production`, or `test` |
+| `PORT` | No | HTTP port (default `3000`) |
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `JWT_SECRET` | Yes | Secret for signing access tokens |
+| `JWT_EXPIRATION_TIME` | No | Access token TTL (default `3600s`) |
+| `INITIAL_ADMIN_PASSWORD` | No | Password for the seeded super-admin user |
+
+### Database setup
 
 ```bash
-# unit tests
-$ npm run test
+# Apply migrations (when available)
+npx prisma migrate dev
 
-# e2e tests
-$ npm run test:e2e
+# Generate Prisma client
+npx prisma generate
 
-# test coverage
-$ npm run test:cov
+# Seed reference data, permissions, roles, and default admin
+npm run db:seed
 ```
 
-## Deployment
+The seed creates a super-admin user (`sudo@xandercreditors.com`) with the `SUPER_ADMIN` role and all permissions. Change the default password via `INITIAL_ADMIN_PASSWORD` before running seed in any shared environment.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Run the API
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Development (watch mode)
+npm run start:dev
+
+# Production build
+npm run build
+npm run start:prod
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+The server listens on the port defined in `PORT` (default `3000`).
 
-## Resources
+## Authentication
 
-Check out a few resources that may come in handy when working with NestJS:
+All routes are protected by default unless marked with `@Public()`.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### Login
 
-## Support
+```http
+POST /api/auth/login
+Content-Type: application/json
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+{
+  "identity": "sudo@xandercreditors.com",
+  "password": "your-password"
+}
+```
 
-## Stay in touch
+Response includes `accessToken`, `refreshToken`, and a `user` object with `roles` and `permissions`.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Login is rate-limited to **5 requests per minute** per client.
+
+### Refresh session
+
+```http
+POST /api/auth/refresh
+Content-Type: application/json
+
+{
+  "userId": "sudo@xandercreditors.com",
+  "refreshToken": "<refresh-token-from-login>"
+}
+```
+
+Access tokens expire after **15 minutes**. Refresh tokens are valid for **7 days** and are stored hashed in the user's `sessionState`.
+
+### Protecting routes
+
+```typescript
+import { Permissions } from './auth/decorators/permissions.decorator';
+import { PERMISSIONS } from './auth/constants/permissions.constant';
+
+@Permissions(PERMISSIONS.LOANS.READ)
+@Get()
+findAll() { /* ... */ }
+```
+
+## Scripts
+
+| Command | Description |
+| --- | --- |
+| `npm run start:dev` | Start in watch mode |
+| `npm run build` | Compile to `dist/` |
+| `npm run start:prod` | Run compiled output |
+| `npm run lint` | ESLint with auto-fix |
+| `npm run test` | Unit tests |
+| `npm run test:e2e` | End-to-end tests |
+| `npm run db:seed` | Run Prisma seed |
+
+## Security defaults
+
+- Passwords hashed with bcrypt (12 rounds in seed)
+- Refresh tokens hashed with SHA-256 before storage
+- Global rate limit: **30 requests per minute** (stricter on login)
+- Request body validation with whitelist — unknown fields are rejected
+- CORS enabled with credentials support
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+UNLICENSED — private project.
